@@ -10,7 +10,6 @@ import torchvision.transforms as transforms
 from PIL import Image
 
 def try_gpu(i=0):
-    """如果存在，则返回gpu(i)，否则返回cpu()。"""
     if torch.cuda.device_count() >= i + 1:
         return torch.device(f'cuda:{i}')
     return torch.device('cpu')
@@ -18,7 +17,7 @@ def try_gpu(i=0):
 
 def train(model, device, data_loader):
     model.eval()
-    # 测试时不计算梯度
+
     with torch.no_grad():
         for batch_idx, data in enumerate(data_loader):
             image1 = data['image1'].to(device)
@@ -35,10 +34,10 @@ def train(model, device, data_loader):
             print(label)
             print(y_hat)
 
-            # # 显示图片 反标准化
+
             trans_to_pil_image = transforms.Compose([
                 transforms.Normalize(mean=[0, 0, 0], std=[1/0.229, 1/0.224, 1/0.225]),
-                transforms.Normalize(mean=[-0.485, -0.456, -0.406], std=[1, 1, 1]),  # 将标准差设为1（因为乘以1后什么都不变）
+                transforms.Normalize(mean=[-0.485, -0.456, -0.406], std=[1, 1, 1]),
                 transforms.ToPILImage(mode="RGB")
             ])
             image1 = trans_to_pil_image(image1[0])
@@ -50,7 +49,7 @@ def train(model, device, data_loader):
 
 
 if __name__ == '__main__':
-    # 参数接收
+
     parser = argparse.ArgumentParser(description='test model')
     parser.add_argument('--device', default=0, type=int, help="gpu serial number")
     parser.add_argument('--batch_size', default=1, type=int)
@@ -59,18 +58,14 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # 参数设置
     DEVICE = try_gpu(args.device)
     BATCH_SIZE = args.batch_size
     PTH_PATH = args.pth_path
     TEST_FOLDER = args.test_folder
 
-    # 模型准备
-    # 模型准备
     MODEL = model.Vs(pretrained=False).to(DEVICE)
     MODEL.load_state_dict(torch.load(PTH_PATH))  # 加载训练好的模型
 
-    # 加载数据
     dataset = loader.LoadVSTestDataset(data_root=TEST_FOLDER)
     data_loader = data.DataLoader(
         dataset=dataset,
@@ -80,5 +75,4 @@ if __name__ == '__main__':
         pin_memory=True
     )
 
-    # 模型训练
     train(MODEL, DEVICE, data_loader)

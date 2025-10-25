@@ -7,7 +7,7 @@ from torchsummary import summary
 class CBAM(nn.Module):
     def __init__(self, in_channel, reduction=16, kernel_size=3):
         super(CBAM, self).__init__()
-        # 通道注意力机制
+
         self.max_pool = nn.AdaptiveMaxPool2d(output_size=1)
         self.avg_pool = nn.AdaptiveAvgPool2d(output_size=1)
         self.mlp = nn.Sequential(
@@ -16,11 +16,11 @@ class CBAM(nn.Module):
             nn.Linear(in_features=in_channel//reduction, out_features=in_channel, bias=False)
         )
         self.tanh = nn.Tanh()
-        # 空间注意力机制
+
         self.conv = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=kernel_size, stride=1, padding=kernel_size//2, bias=False)
 
     def forward(self, x):
-        # 通道
+
         maxout = self.max_pool(x)
         maxout = self.mlp(maxout.view(maxout.size(0), -1))
         avgout = self.avg_pool(x)
@@ -29,7 +29,7 @@ class CBAM(nn.Module):
         channel_out = channel_out.view(x.size(0),x.size(1),1,1)
         channel_out = channel_out*x
 
-        # 空间
+
         max_out, _ = torch.max(x, dim=1, keepdim=True)
         mean_out = torch.mean(x, dim=1, keepdim=True)
         space_out = torch.cat((max_out, mean_out),dim=1)
@@ -42,7 +42,7 @@ class CBAM(nn.Module):
 
 
 class SeBlock(nn.Module):
-    # 自定义的卷积块
+
     def __init__(self, in_channel, out_channel):
         super(SeBlock, self).__init__()
         self.block1 = nn.Sequential(
@@ -76,7 +76,7 @@ class Sal(nn.Module):
         if pretrained:
             resnet.load_state_dict(torch.load("./pretrained/resnet34-b627a593.pth"))
 
-        # 编码器
+
         self.resnet = resnet
         self.encoder0 = nn.Sequential(
             resnet.conv1,
@@ -89,10 +89,10 @@ class Sal(nn.Module):
         self.encoder3 = resnet.layer3  # in 128*28*28 out 256*14*14
         self.encoder4 = resnet.layer4  # in 256*14*14 out 512*7*7
 
-        # 减少通道一次
+
         self.mid = self.decoder4 = SeBlock(512, 512)  # 512*7*7
 
-        # 解码器
+
         self.decoder4 = SeBlock(512, 256)
         self.up4 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # 256*14*14
         self.decoder3 = SeBlock(256, 128)
@@ -129,4 +129,4 @@ class Sal(nn.Module):
 if __name__ == '__main__':
     net = Sal(pretrained=False)
     # print(net)
-    summary(net, input_size=(3, 224, 224), device="cpu")  # 不知道为什么，一维向量的输入需要多加上一个维度
+    summary(net, input_size=(3, 224, 224), device="cpu")

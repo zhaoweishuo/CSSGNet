@@ -13,7 +13,7 @@ class Vs(nn.Module):
             vit1.load_state_dict(torch.load("./pretrained/vit_b_16-c867db91.pth"))
             vit2.load_state_dict(torch.load("./pretrained/vit_b_16-c867db91.pth"))
 
-        # 当前图像流
+
         self.vit1 = vit1
         self.vit2 = vit2
 

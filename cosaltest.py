@@ -8,7 +8,7 @@ from PIL import Image
 
 
 def try_gpu(i=0):
-    """如果存在，则返回gpu(i)，否则返回cpu()。"""
+
     if torch.cuda.device_count() >= i + 1:
         return torch.device(f'cuda:{i}')
     return torch.device('cpu')
@@ -16,7 +16,7 @@ def try_gpu(i=0):
 
 def test(model, device, test_data_loader, vsmodel):
     model.eval()
-    # 测试时不计算梯度
+
     with torch.no_grad():
         for batch_idx, data in enumerate(test_data_loader):
             x = data['image'].to(device)
@@ -25,7 +25,7 @@ def test(model, device, test_data_loader, vsmodel):
             pred = y_hat.squeeze(0).cpu()
             image = x.squeeze(0).cpu()
 
-            # batch_size为1
+
             trans_to_pil_image = transforms.ToPILImage(mode="RGB")
             trans_to_pil_pred = transforms.ToPILImage(mode="L")
             image = trans_to_pil_image(image)
@@ -74,7 +74,7 @@ def test(model, device, test_data_loader, vsmodel):
 
 
 if __name__ == '__main__':
-    # 参数接收
+
     parser = argparse.ArgumentParser(description='test model')
     parser.add_argument('--device', default=0, type=int, help="gpu serial number")
     parser.add_argument('--batch_size', default=1, type=int)
@@ -83,20 +83,20 @@ if __name__ == '__main__':
     parser.add_argument('--vspth_path', default="./checkpoint/vs32.pth", type=str)
     args = parser.parse_args()
 
-    # 参数设置
+
     DEVICE = try_gpu(args.device)
     BATCH_SIZE = args.batch_size
     TEST_FOLDER = args.test_folder
     PTH_PATH = args.pth_path
     VSPTH_PATH = args.vspth_path
 
-    # 模型准备
-    MODEL = model.Sal(pretrained=False).to(DEVICE)
-    MODEL.load_state_dict(torch.load(PTH_PATH))  # 加载训练好的模型
-    VSMODEL = model.Vs(pretrained=False).to(DEVICE)
-    VSMODEL.load_state_dict(torch.load(VSPTH_PATH))  # 加载训练好的模型
 
-    # 加载数据
+    MODEL = model.Sal(pretrained=False).to(DEVICE)
+    MODEL.load_state_dict(torch.load(PTH_PATH))
+    VSMODEL = model.Vs(pretrained=False).to(DEVICE)
+    VSMODEL.load_state_dict(torch.load(VSPTH_PATH))
+
+
     test_dataset = loader.LoadVSDataset(data_root=TEST_FOLDER)
     test_data_loader = data.DataLoader(
         dataset=test_dataset,
@@ -106,7 +106,7 @@ if __name__ == '__main__':
         pin_memory=True
     )
 
-    # 模型预测
+
     test(MODEL, DEVICE, test_data_loader, VSMODEL)
 
 
