@@ -127,16 +127,21 @@ class Sal(nn.Module):
         return out
 
 
-if __name__ == '__main__':
-    net = Sal(pretrained=False)
+if __name__ == "__main__":
+    net = Sal(pretrained=False).eval()
 
-    in1 = torch.rand(1,3, 224, 224)
+    input_image = torch.rand(1, 3, 224, 224)
 
+    actual_params = sum(p.numel() for p in net.parameters())
 
-    flops, params = profile(net, inputs=(in1,))
-    flops_g = flops / 1e9
-    params_m = params / 1e6
-    print(f"Params: {params_m:.3f} M")
-    print(f"FLOPs:  {flops_g:.3f} GFLOPs")
+    with torch.no_grad():
+        macs, thop_params = profile(
+            net,
+            inputs=(input_image,),
+            verbose=False,
+        )
 
-
+    print(f"Actual parameters: {actual_params:,}")
+    print(f"Actual parameters: {actual_params / 1e6:.3f} M")
+    print(f"THOP parameters: {thop_params / 1e6:.3f} M")
+    print(f"THOP counted MACs: {macs / 1e9:.3f} G")

@@ -56,13 +56,21 @@ class Vs(nn.Module):
 
 
 if __name__ == "__main__":
-    net = Vs(pretrained=False)
+    net = Vs(pretrained=False).eval()
 
-    input1 = torch.rand(2, 3, 224, 224)
-    input2 = torch.rand(2, 3, 224, 224)
+    input1 = torch.rand(1, 3, 224, 224)
+    input2 = torch.rand(1, 3, 224, 224)
 
-    flops, params = profile(net, inputs=(input1,input2))
-    flops_g = flops / 1e9
-    params_m = params / 1e6
-    print(f"Params: {params_m:.3f} M")
-    print(f"FLOPs:  {flops_g:.3f} GFLOPs")
+    actual_params = sum(p.numel() for p in net.parameters())
+
+    with torch.no_grad():
+        macs, thop_params = profile(
+            net,
+            inputs=(input1, input2),
+            verbose=False,
+        )
+
+    print(f"Actual parameters: {actual_params:,}")
+    print(f"Actual parameters: {actual_params / 1e6:.3f} M")
+    print(f"THOP parameters: {thop_params / 1e6:.3f} M")
+    print(f"THOP counted MACs: {macs / 1e9:.3f} G")

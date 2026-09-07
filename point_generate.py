@@ -1,43 +1,52 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import random
 
 
-def generate_cube_point(side_length=0.12, radian_range=0.12, num_samples=1000):
-    sampled_points = np.zeros((num_samples, 6))
-    max_degree = np.deg2rad(30)
+def generate_cube_point(
+    translation_range=0.2,
+    rotation_range=1.0,
+    num_samples=10000,
+):
+    translation = np.random.uniform(
+        -translation_range,
+        translation_range,
+        size=(num_samples, 3),
+    )
 
-    for i in range(num_samples):
+    rotation = np.random.uniform(
+        -rotation_range,
+        rotation_range,
+        size=(num_samples, 3),
+    )
 
-        x = np.random.uniform(-side_length / 2, side_length / 2)
-        y = np.random.uniform(-side_length / 2, side_length / 2)
-        z = np.random.uniform(-side_length / 2, side_length / 2)
-
-
-        phi = max_degree * random.uniform(-radian_range/2, radian_range/2)
-        theta = max_degree * random.uniform(-radian_range/2, radian_range/2)
-        psi = max_degree * random.uniform(-radian_range/2, radian_range/2)
-        sampled_points[i] = [x, y, z, phi, theta, psi]
-
-    return sampled_points
+    return np.concatenate((translation, rotation), axis=1)
 
 
 def draw_scatter(points):
     fig = plt.figure(dpi=200, constrained_layout=True)
-    plt.rcParams['font.family'] = 'Times New Roman'
-    ax = fig.add_subplot(1, 1, 1, projection='3d')
-    for tick in ax.xaxis.get_majorticklabels():
-        tick.set_fontweight('bold')
-    for tick in ax.yaxis.get_majorticklabels():
-        tick.set_fontweight('bold')
-    for tick in ax.zaxis.get_majorticklabels():
-        tick.set_fontweight('bold')
-    ax.scatter(points[:, 0], points[:, 1], points[:, 2], c='r', marker='o')
+    plt.rcParams["font.family"] = "Times New Roman"
 
+    ax = fig.add_subplot(1, 1, 1, projection="3d")
+
+    for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+        for tick in axis.get_majorticklabels():
+            tick.set_fontweight("bold")
+
+    ax.scatter(
+        points[:, 0],
+        points[:, 1],
+        points[:, 2],
+        c="r",
+        marker="o",
+    )
 
     plt.show()
 
 
 if __name__ == "__main__":
-    points = generate_cube_point(num_samples=1000)
-    draw_scatter(points=points)
+    points = generate_cube_point(
+        translation_range=0.2,
+        rotation_range=1.0,
+        num_samples=10000,
+    )
+    draw_scatter(points)

@@ -1,68 +1,114 @@
-
+import csv
 import time
-import point_generate
-from coppeliasim_zmqremoteapi_client import RemoteAPIClient
+from pathlib import Path
+
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
-import pandas
+from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 
-client = RemoteAPIClient()
-sim = client.require('sim')
-
-
-points = point_generate.generate_cube_point(side_length=0.2, radian_range=1, num_samples=10000)
-
-target_handle = sim.getObject('/UR5/target')
-tip_handle = sim.getObject('/UR5/tip')
-origin_position = sim.getObjectPosition(tip_handle)
-origin_orientation = sim.getObjectOrientation(tip_handle)
+import point_generate
+from pose_utils import DATA_COLUMNS, matrix_to_pose
 
 
-sensor_handle = sim.getObject('/UR5/Vision_sensor')
+def main():
+    data_root = Path("./dataset/10000_camera_pose")
+    image_root = data_root / "Image"
+    label_path = data_root / "label.csv"
 
-count = 1
+    if label_path.exists() or (
+        image_root.exists() and any(image_root.iterdir())
+    ):
+        raise FileExistsError(
+            f"Output dataset already exists: {data_root}. "
+            "Use an empty output directory."
+        )
 
-for i in points:
+    image_root.mkdir(parents=True, exist_ok=True)
+
+    client = RemoteAPIClient()
+    sim = client.require("sim")
+
+    base_handle = sim.getObject("/UR5")
+    target_handle = sim.getObject("/UR5/target")
+    tip_handle = sim.getObject("/UR5/tip")
+    sensor_handle = sim.getObject("/UR5/Vision_sensor")
+
+    origin_position = sim.getObjectPosition(tip_handle)
+    origin_orientation = sim.getObjectOrientation(tip_handle)
+    original_target_matrix = sim.getObjectMatrix(target_handle)
+
+    points = point_generate.generate_cube_point(
+        translation_range=0.2,
+        rotation_range=1.0,
+        num_samples=10000,
+    )
+
+    try:
+        with label_path.open("w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow(DATA_COLUMNS)
+
+            for count, point in enumerate(points, start=1):
+                new_position = [
+                    origin_position[index] + point[index]
+                    for index in range(3)
+                ]
+                new_orientation = [
+                    origin_orientation[index] + point[index + 3]
+                    for index in range(3)
+                ]
+
+                target_matrix = sim.buildMatrix(
+                    new_position,
+                    new_orientation,
+                )
+                sim.setObjectMatrix(target_handle, target_matrix)
+                time.sleep(0.4)
+
+                was_running = (
+                    sim.getSimulationState()
+                    == sim.simulation_advancing_running
+                )
+
+                if was_running:
+                    sim.pauseSimulation()
+                    while (
+                        sim.getSimulationState()
+                        != sim.simulation_paused
+                    ):
+                        time.sleep(0.005)
+
+                try:
+                    camera_matrix = sim.getObjectMatrix(
+                        sensor_handle,
+                        base_handle,
+                    )
+                    pose = matrix_to_pose(camera_matrix)
+
+                    image_data, resolution = sim.getVisionSensorImg(
+                        sensor_handle
+                    )
+                    image_array = np.frombuffer(
+                        image_data,
+                        dtype=np.uint8,
+                    ).reshape(resolution[1], resolution[0], 3)
+
+                    image = Image.fromarray(
+                        np.flipud(image_array).copy()
+                    )
+
+                    image_name = f"{count}.png"
+                    image.save(image_root / image_name)
+                    writer.writerow([image_name, *pose.tolist()])
+                    file.flush()
+                finally:
+                    if was_running:
+                        sim.startSimulation()
+
+                print(f"Image Name: {image_name}")
+    finally:
+        sim.setObjectMatrix(target_handle, original_target_matrix)
 
 
-    new_position = [origin_position[0] + i[0], origin_position[1] + i[1], origin_position[2] + i[2]]
-    new_orientation = [origin_orientation[0] + i[3], origin_orientation[1] + i[4], origin_orientation[2] + i[5]]
-
-
-    buildmatrix = sim.buildMatrix(new_position, new_orientation)
-    sim.setObjectMatrix(target_handle, buildmatrix)
-    time.sleep(0.4)
-
-    image, resolution = sim.getVisionSensorImg(sensor_handle)
-    image = np.frombuffer(image, dtype=np.uint8).reshape(resolution[1], resolution[0], 3)
-    image = np.flipud(image)
-    image = Image.fromarray(image)
-
-
-    real_position = sim.getObjectPosition(tip_handle)
-    real_orientation = sim.getObjectOrientation(tip_handle)
-
-    image.save("./dataset/10000/Image/"+str(count)+".png")  # 保存图片
-    label = {
-        "name": str(count)+".png",
-        "x": real_position[0],
-        "y": real_position[1],
-        "z": real_position[2],
-        "a": real_orientation[0],
-        "b": real_orientation[1],
-        "g": real_orientation[2]
-    }
-    data = pandas.DataFrame(data=label, index=[0])  #
-    data.to_csv("./dataset/10000/label.csv", mode='a', index=False, header=False)  # 保存数据
-
-
-
-
-    print("Image Name: {}".format(str(count)+".png"))
-    count += 1
-
-
-sim.setObjectPosition(target_handle, origin_position)
-sim.setObjectOrientation(target_handle, origin_orientation)
-
+if __name__ == "__main__":
+    main()
